@@ -635,13 +635,15 @@ static void _st_pgsql_free(st_driver_t drv) {
 }
 
 st_ret_t st_init(st_driver_t drv) {
-    char *host, *port, *dbname, *user, *pass, *conninfo;
+    char *host, *port, *dbname, *schema, *user, *pass, *conninfo;
+	char *template, *setsearchpath;
     PGconn *conn;
     drvdata_t data;
 
     host = config_get_one(drv->st->config, "storage.pgsql.host", 0);
     port = config_get_one(drv->st->config, "storage.pgsql.port", 0);
     dbname = config_get_one(drv->st->config, "storage.pgsql.dbname", 0);
+    schema  = config_get_one(drv->st->config, "storage.pgsql.schema", 0);
     user = config_get_one(drv->st->config, "storage.pgsql.user", 0);
     pass = config_get_one(drv->st->config, "storage.pgsql.pass", 0);
     conninfo = config_get_one(drv->st->config, "storage.pgsql.conninfo",0);
@@ -659,6 +661,14 @@ st_ret_t st_init(st_driver_t drv) {
 
     if(PQstatus(conn) != CONNECTION_OK)
         log_write(drv->st->log, LOG_ERR, "pgsql: connection to database failed: %s", PQerrorMessage(conn));
+
+    if (schema) {
+        template = "SET search_path TO \"%s\"";
+        setsearchpath = malloc( strlen( template ) + strlen(schema) );
+        sprintf( setsearchpath, template, schema );
+        PQexec(conn, setsearchpath);
+        free(setsearchpath);
+    }
 
     data = (drvdata_t) calloc(1, sizeof(struct drvdata_st));
 
